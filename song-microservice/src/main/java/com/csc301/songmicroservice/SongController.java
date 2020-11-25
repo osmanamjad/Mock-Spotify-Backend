@@ -95,9 +95,25 @@ public class SongController {
 	public @ResponseBody Map<String, Object> updateFavouritesCount(@PathVariable("songId") String songId,
 			@RequestParam("shouldDecrement") String shouldDecrement, HttpServletRequest request) {
 
+		DbQueryStatus dbQueryStatus = null;
+		
 		Map<String, Object> response = new HashMap<String, Object>();
 		response.put("data", String.format("PUT %s", Utils.getUrl(request)));
-
-		return null;
+		
+		boolean shouldDec;
+		if (shouldDecrement.equalsIgnoreCase("true")) {
+			shouldDec = true;
+			dbQueryStatus = songDal.updateSongFavouritesCount(songId, shouldDec);
+		} else if (shouldDecrement.equalsIgnoreCase("false")) {
+			shouldDec = false;
+			dbQueryStatus = songDal.updateSongFavouritesCount(songId, shouldDec);
+		} else {
+			dbQueryStatus = new DbQueryStatus("Invalid shouldDecrement value", DbQueryExecResult.QUERY_ERROR_GENERIC);
+		}
+		
+		response.put("message", dbQueryStatus.getMessage());
+		response = Utils.setResponseStatus(response, dbQueryStatus.getdbQueryExecResult(), dbQueryStatus.getData());
+		
+		return response;
 	}
 }
