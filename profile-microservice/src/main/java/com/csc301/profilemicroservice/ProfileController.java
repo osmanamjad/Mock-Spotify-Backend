@@ -49,11 +49,25 @@ public class ProfileController {
 	@RequestMapping(value = "/profile", method = RequestMethod.POST)
 	public @ResponseBody Map<String, Object> addProfile(@RequestParam Map<String, String> params,
 			HttpServletRequest request) {
-
+		
+		DbQueryStatus dbQueryStatus = null;
+		
+		if (params.get("userName") == null || params.get("fullName") == null || 
+				params.get("password") == null) {
+			dbQueryStatus = new DbQueryStatus("Missing query params", DbQueryExecResult.QUERY_ERROR_GENERIC);
+		}
+		else {
+			dbQueryStatus = profileDriver.createUserProfile(params.get("userName"), params.get("fullName"), 
+					params.get("password"));
+		}
+		
 		Map<String, Object> response = new HashMap<String, Object>();
 		response.put("path", String.format("POST %s", Utils.getUrl(request)));
+	
+		response.put("message", dbQueryStatus.getMessage());
+		response = Utils.setResponseStatus(response, dbQueryStatus.getdbQueryExecResult(), dbQueryStatus.getData());
 
-		return null;
+		return response;
 	}
 
 	@RequestMapping(value = "/followFriend/{userName}/{friendUserName}", method = RequestMethod.PUT)
