@@ -1,8 +1,8 @@
 package com.csc301.songmicroservice;
 
+import org.bson.Document;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -25,8 +25,24 @@ public class SongDalImpl implements SongDal {
 
 	@Override
 	public DbQueryStatus addSong(Song songToAdd) {
-		// TODO Auto-generated method stub
-		return null;
+		Document song = new Document();
+		DbQueryStatus dbqs;
+		song.put("songName", songToAdd.getSongName());
+		song.put("songArtistFullName", songToAdd.getSongArtistFullName());
+		song.put("songAlbum", songToAdd.getSongAlbum());
+		song.put("songAmountFavourites", songToAdd.getSongAmountFavourites());
+		try {
+			db.getCollection("songs").insertOne(song);
+		} catch (Exception e) {
+			return new DbQueryStatus("Error adding song", DbQueryExecResult.QUERY_ERROR_GENERIC);
+		}
+		
+		ObjectId id = song.getObjectId("_id");
+		songToAdd.setId(id);
+		
+		dbqs = new DbQueryStatus("Successfully added song", DbQueryExecResult.QUERY_OK);
+		dbqs.setData(songToAdd.getJsonRepresentation());
+		return dbqs;
 	}
 
 	@Override
