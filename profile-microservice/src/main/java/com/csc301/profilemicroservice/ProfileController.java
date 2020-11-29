@@ -135,9 +135,13 @@ public class ProfileController {
 			@PathVariable("songId") String songId, HttpServletRequest request) {
 
 		Map<String, Object> response = new HashMap<String, Object>();
-		response.put("path", String.format("PUT %s", Utils.getUrl(request)));
+		DbQueryStatus dbQueryStatus = likeSongAndUpdateFavourites(userName, songId, "true");
 
-		return null;
+		response.put("path", String.format("PUT %s", Utils.getUrl(request)));
+		response.put("message", dbQueryStatus.getMessage());
+		response = Utils.setResponseStatus(response, dbQueryStatus.getdbQueryExecResult(), dbQueryStatus.getData());
+
+		return response;
 	}
 
 	@RequestMapping(value = "/deleteAllSongsFromDb/{songId}", method = RequestMethod.PUT)
@@ -175,7 +179,7 @@ public class ProfileController {
 				getSongBody = responseFromGetSong.body().string();
 				System.out.println(getSongBody);
 				
-				// if /getSongById found a song successfully, then we attempt to add it to playlist
+				// if /getSongById found a song successfully, then we attempt to add/remove it to playlist
 				if (getSongBody.contains("\"status\":\"OK\"")) {
 					if (shouldDecrement == "false") {
 						dbQueryStatus = playlistDriver.likeSong(userName, songId);

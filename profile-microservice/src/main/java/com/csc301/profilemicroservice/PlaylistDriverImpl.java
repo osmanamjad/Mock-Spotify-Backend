@@ -67,8 +67,39 @@ public class PlaylistDriverImpl implements PlaylistDriver {
 
 	@Override
 	public DbQueryStatus unlikeSong(String userName, String songId) {
+		DbQueryStatus dbqs = null;
+
+		try (Session session = ProfileMicroserviceApplication.driver.session()){
+			try (Transaction trans = session.beginTransaction()) {
+				try {	
+					if (!isNameInDB(userName, "profile")) {
+						return new DbQueryStatus("User not found", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
+					}
+					
+					if (!isRelationshipInDB(userName, songId)) {
+						return new DbQueryStatus("Relationship not found between user and song", 
+								DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
+					}
+					
+					String queryRemoveRel = "MATCH (p:playlist { plName: $x })-[r:includes]->"
+							+ "(s: song {songId: $y})\nDELETE r";
+					
+					Map<String, Object> queryRemoveRelParam = new HashMap<String, Object>();
+					queryRemoveRelParam.put("x", userName + "-favorites");
+					queryRemoveRelParam.put("y", songId);
+					
+					trans.run(queryRemoveRel, queryRemoveRelParam);
+					
+					trans.success();
+				} catch (Exception e)  {
+					return new DbQueryStatus("Error unliking song", DbQueryExecResult.QUERY_ERROR_GENERIC);
+				}
+			}
+			session.close();
+		}
 		
-		return null;
+		dbqs = new DbQueryStatus("Successfully unliked song", DbQueryExecResult.QUERY_OK);
+		return dbqs;
 	}
 
 	@Override
@@ -84,6 +115,24 @@ public class PlaylistDriverImpl implements PlaylistDriver {
 		while(result.hasNext()) {
 			Record record = result.next();
 			if (name.equals(record.get("n.userName").asString())) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean isRelationshipInDB(String userName, String songId) throws Exception {
+		Session session = driver.session();
+		Transaction trans = session.beginTransaction();
+		String query = "MATCH ({plName: $x})-[r]->({songId: $y})\n"
+				+ "RETURN type(r)";
+		Map<String, Object> queryParams = new HashMap<String, Object>();
+		queryParams.put("x", userName + "-favorites");
+		queryParams.put("y", songId);
+		StatementResult result = trans.run(query, queryParams);
+		while(result.hasNext()) {
+			Record record = result.next();
+			if(record.get(0).asString().equals("includes")){
 				return true;
 			}
 		}

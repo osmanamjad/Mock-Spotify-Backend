@@ -155,7 +155,7 @@ public class SongDalImpl implements SongDal {
 					
 					//if songAmountFavourites is already 0, then it shouldn't be decremented -1
 					if (jsonObj.get("songAmountFavourites") == (Object)0) {
-						return new DbQueryStatus("Song amount favourites already at 0", DbQueryExecResult.QUERY_OK);
+						return new DbQueryStatus("Song amount favourites already at 0", DbQueryExecResult.QUERY_ERROR_GENERIC);
 					}
 				}	        
 	        }
