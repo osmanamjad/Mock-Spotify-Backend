@@ -86,18 +86,111 @@ public class ProfileDriverImpl implements ProfileDriver {
 	@Override
 	public DbQueryStatus followFriend(String userName, String frndUserName) {
 		
-		return null;
+		DbQueryStatus dbqs = null;
+		
+		try (Session session = ProfileMicroserviceApplication.driver.session()){
+			try (Transaction trans = session.beginTransaction()) {
+				try {	
+					if (!isNameInDB(userName, "profile") || !isNameInDB(frndUserName, "profile")) {
+						return new DbQueryStatus("User do not exist", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
+					}
+					
+					if(isRelationshipInDB(userName, frndUserName)) {
+						return new DbQueryStatus(userName + " already follows " + frndUserName, DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
+					}
+					
+					String query = "MATCH (a:profile {userName: $x}), (b:profile {userName: $y})\n"
+						+ "MERGE (a)-[:follows]->(b)";
+					
+					Map<String, Object> queryParams = new HashMap<String, Object>();
+					queryParams.put("x", userName);
+					queryParams.put("y", frndUserName);
+					
+					trans.run(query, queryParams);
+					
+					trans.success();
+				} catch (Exception e)  {
+					return new DbQueryStatus("Error following user", DbQueryExecResult.QUERY_ERROR_GENERIC);
+				}
+			}
+			session.close();
+		}
+		
+		dbqs = new DbQueryStatus(userName + " follows " + frndUserName, DbQueryExecResult.QUERY_OK);
+		return dbqs;
 	}
 
 	@Override
 	public DbQueryStatus unfollowFriend(String userName, String frndUserName) {
 		
-		return null;
+		DbQueryStatus dbqs = null;
+		
+		try (Session session = ProfileMicroserviceApplication.driver.session()) {
+			try (Transaction trans = session.beginTransaction()) {
+				try {
+					if (!isNameInDB(userName, "profile") || !isNameInDB(frndUserName, "profile")) {
+						return new DbQueryStatus("User do not exist", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
+					}
+					
+					if(!isRelationshipInDB(userName, frndUserName)) {
+						return new DbQueryStatus(userName + " does not follow " + frndUserName +". Can't unfollow a user you don't follow", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
+					}
+					
+					String query = "MATCH ({userName: $x})-[r:follows]->({userName: $y})\nDELETE r";
+					
+					Map<String, Object> queryParams = new HashMap<String, Object>();
+					queryParams.put("x", userName);
+					queryParams.put("y", frndUserName);
+					
+					trans.run(query, queryParams);
+					
+					trans.success();
+					
+				} catch (Exception e) {
+					return new DbQueryStatus("Error removing follow", DbQueryExecResult.QUERY_ERROR_GENERIC);
+				}
+			}
+			session.close();
+		}
+		
+		dbqs = new DbQueryStatus(userName + " unfollows " + frndUserName, DbQueryExecResult.QUERY_OK);
+		return dbqs;
 	}
 
 	@Override
 	public DbQueryStatus getAllSongFriendsLike(String userName) {
-			
+		
 		return null;
+	}
+	
+	public boolean isNameInDB(String name, String type) throws Exception {
+		Session session = driver.session();
+		Transaction trans = session.beginTransaction();
+		StatementResult result = trans.run("MATCH (n:" + type + ") RETURN n.userName");
+		while(result.hasNext()) {
+			Record record = result.next();
+			if (name.equals(record.get("n.userName").asString())) {
+				return true;
+				}
+			}
+		return false;
+	}
+	
+	public boolean isRelationshipInDB(String userName, String frndUserName) throws Exception {
+		Session session = driver.session();
+		Transaction trans = session.beginTransaction();
+		String query = "MATCH ({userName: $x})-[r]->({userName: $y})\n"
+				+ "RETURN type(r)";
+		Map<String, Object> queryParams = new HashMap<String, Object>();
+		queryParams.put("x", userName);
+		queryParams.put("y", frndUserName);
+		StatementResult result = trans.run(query, queryParams);
+		while(result.hasNext()) {
+			Record record = result.next();
+			if(record.get(0).asString().equals("follows")){
+				return true;
+			}
+		}
+		return false;
 	}
 }
