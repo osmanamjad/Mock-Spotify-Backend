@@ -13,6 +13,7 @@ import com.csc301.profilemicroservice.Utils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import okhttp3.Call;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -118,11 +119,15 @@ public class ProfileController {
 	@RequestMapping(value = "/likeSong/{userName}/{songId}", method = RequestMethod.PUT)
 	public @ResponseBody Map<String, Object> likeSong(@PathVariable("userName") String userName,
 			@PathVariable("songId") String songId, HttpServletRequest request) {
-
+				
 		Map<String, Object> response = new HashMap<String, Object>();
-		response.put("path", String.format("PUT %s", Utils.getUrl(request)));
+		DbQueryStatus dbQueryStatus = likeSongAndUpdateFavourites(userName, songId, "false");
 
-		return null;
+		response.put("path", String.format("PUT %s", Utils.getUrl(request)));
+		response.put("message", dbQueryStatus.getMessage());
+		response = Utils.setResponseStatus(response, dbQueryStatus.getdbQueryExecResult(), dbQueryStatus.getData());
+
+		return response;
 	}
 
 	@RequestMapping(value = "/unlikeSong/{userName}/{songId}", method = RequestMethod.PUT)
@@ -143,5 +148,92 @@ public class ProfileController {
 		response.put("path", String.format("PUT %s", Utils.getUrl(request)));
 		
 		return null;
+	}
+	
+	public DbQueryStatus likeSongAndUpdateFavourites(String userName, String songId, String shouldDecrement) {
+		DbQueryStatus dbQueryStatus = null;
+
+		try {
+			HttpUrl.Builder getSongUrlBuilder = HttpUrl.parse("http://localhost:3001" + "/getSongById").newBuilder();
+			getSongUrlBuilder.addPathSegment(songId);
+			String getSongUrl = getSongUrlBuilder.build().toString();
+			
+			System.out.println(getSongUrl);
+
+			Request getSongReq = new Request.Builder()
+					.url(getSongUrl)
+					.method("GET", null)
+					.build();
+
+			Call getSongCall = client.newCall(getSongReq);
+			Response responseFromGetSong = null;
+
+			String getSongBody = "{}";
+
+			try {
+				responseFromGetSong = getSongCall.execute();
+				getSongBody = responseFromGetSong.body().string();
+				System.out.println(getSongBody);
+				
+				// if /getSongById found a song successfully, then we attempt to add it to playlist
+				if (getSongBody.contains("\"status\":\"OK\"")) {
+					if (shouldDecrement == "false") {
+						dbQueryStatus = playlistDriver.likeSong(userName, songId);
+					} else {
+						dbQueryStatus = playlistDriver.unlikeSong(userName, songId);
+					}
+					
+					//if it was successfully liked and added to playlist then update its favourites count
+					if (dbQueryStatus.getdbQueryExecResult() == DbQueryExecResult.QUERY_OK) {
+						try {
+							HttpUrl.Builder favouritesUrlBuilder = HttpUrl.parse("http://localhost:3001" + "/updateSongFavouritesCount").newBuilder();
+							favouritesUrlBuilder.addPathSegment(songId);
+							favouritesUrlBuilder.addQueryParameter("shouldDecrement", shouldDecrement);
+							String favouritesUrl = favouritesUrlBuilder.build().toString();
+							
+							System.out.println(favouritesUrl);
+
+						    RequestBody body = RequestBody.create(null, new byte[0]);
+							
+							Request favouritesReq = new Request.Builder()
+									.url(favouritesUrl)
+									.method("PUT", body)
+									.build();
+
+							Call favouritesCall = client.newCall(favouritesReq);
+							Response responseFromFavourites = null;
+
+							String favouritesBody = "{}";
+							
+							try {
+								responseFromFavourites = favouritesCall.execute();
+								favouritesBody = responseFromFavourites.body().string();
+								System.out.println(favouritesBody);
+								if (!favouritesBody.contains("\"status\":\"OK\"") ) {
+									dbQueryStatus = new DbQueryStatus("Update song favourites count was "
+											+ "not successful", DbQueryExecResult.QUERY_ERROR_GENERIC);
+								}
+							} catch (IOException i) {
+								i.printStackTrace();
+							}
+						} catch (Exception e) {
+							e.printStackTrace();
+							dbQueryStatus = new DbQueryStatus("Unable to contact song microservice to "
+									+ "update song favourites", DbQueryExecResult.QUERY_ERROR_GENERIC);
+						}
+					}
+					
+				} else {
+					dbQueryStatus = new DbQueryStatus("Song not found", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			dbQueryStatus = new DbQueryStatus("Unable to contact song microservice to find song by id", 
+					DbQueryExecResult.QUERY_ERROR_GENERIC);
+		}
+		return dbQueryStatus;
 	}
 }

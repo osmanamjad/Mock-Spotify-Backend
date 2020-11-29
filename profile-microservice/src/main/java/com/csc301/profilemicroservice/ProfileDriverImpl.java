@@ -171,8 +171,8 @@ public class ProfileDriverImpl implements ProfileDriver {
 			Record record = result.next();
 			if (name.equals(record.get("n.userName").asString())) {
 				return true;
-				}
 			}
+		}
 		return false;
 	}
 	

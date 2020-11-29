@@ -1,22 +1,18 @@
 package com.csc301.songmicroservice;
 
-import java.util.Iterator;
 import org.bson.Document;
 import org.bson.json.JsonWriterSettings;
-
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.HashMap;
 import java.util.Map;
 import org.bson.types.ObjectId;
 import org.json.JSONException;
-
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Repository;
-
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.client.MongoIterable;
