@@ -104,8 +104,35 @@ public class PlaylistDriverImpl implements PlaylistDriver {
 
 	@Override
 	public DbQueryStatus deleteSongFromDb(String songId) {
+		DbQueryStatus dbqs = null;
+
+		try (Session session = ProfileMicroserviceApplication.driver.session()){
+			try (Transaction trans = session.beginTransaction()) {
+				try {	
+					if (!isSongInDB(songId)) {
+						// since this api will be called from song microservice when we delete a song from
+						// mongo db, if the song doesn't exist in neo4j db it is not an error.
+						return new DbQueryStatus("Song not found", DbQueryExecResult.QUERY_OK);
+					}
+					
+					//query to remove song and all its relationships
+					String queryRemoveSong = "MATCH (s:song { songId: $x })\nDETACH DELETE s";
+					
+					Map<String, Object> queryRemoveSongParam = new HashMap<String, Object>();
+					queryRemoveSongParam.put("x", songId);
+					
+					trans.run(queryRemoveSong, queryRemoveSongParam);
+					
+					trans.success();
+				} catch (Exception e)  {
+					return new DbQueryStatus("Error deleting song", DbQueryExecResult.QUERY_ERROR_GENERIC);
+				}
+			}
+			session.close();
+		}
 		
-		return null;
+		dbqs = new DbQueryStatus("Successfully deleted song", DbQueryExecResult.QUERY_OK);
+		return dbqs;
 	}
 	
 	public boolean isNameInDB(String name, String type) throws Exception {
@@ -115,6 +142,19 @@ public class PlaylistDriverImpl implements PlaylistDriver {
 		while(result.hasNext()) {
 			Record record = result.next();
 			if (name.equals(record.get("n.userName").asString())) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean isSongInDB(String songId) throws Exception {
+		Session session = driver.session();
+		Transaction trans = session.beginTransaction();
+		StatementResult result = trans.run("MATCH (n:song) RETURN n.songId");
+		while(result.hasNext()) {
+			Record record = result.next();
+			if (songId.equals(record.get("n.songId").asString())) {
 				return true;
 			}
 		}
