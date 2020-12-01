@@ -81,6 +81,46 @@ public class SongController {
 		// first delete the song from mongo db
 		DbQueryStatus dbQueryStatus = songDal.deleteSongById(songId);
 		
+		if (dbQueryStatus.getdbQueryExecResult() == DbQueryExecResult.QUERY_OK) {
+			try {
+				HttpUrl.Builder deleteSongUrlBuilder = HttpUrl.parse("http://localhost:3002" + "/deleteAllSongsFromDb").newBuilder();
+				deleteSongUrlBuilder.addPathSegment(songId);
+				String deleteSongUrl = deleteSongUrlBuilder.build().toString();
+				
+				System.out.println(deleteSongUrl);
+				
+			    RequestBody body = RequestBody.create(null, new byte[0]);
+
+				Request deleteSongReq = new Request.Builder()
+						.url(deleteSongUrl)
+						.method("PUT", body)
+						.build();
+
+				Call deleteSongCall = client.newCall(deleteSongReq);
+				Response responseFromDeleteSong = null;
+
+				String deleteSongBody = "{}";
+
+				try {
+					responseFromDeleteSong = deleteSongCall.execute();
+					deleteSongBody = responseFromDeleteSong.body().string();
+					System.out.println(deleteSongBody);
+					
+					//if song doesnt exist in neo4j db, or its been successfully deleted, then status is OK
+					if (!deleteSongBody.contains("\"status\":\"OK\"")) {
+						dbQueryStatus = new DbQueryStatus("Error deleting song from neo4j db", 
+								DbQueryExecResult.QUERY_ERROR_GENERIC);
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+				dbQueryStatus = new DbQueryStatus("Unable to contact profile microservice to delete song "
+						+ "from neo4j db", DbQueryExecResult.QUERY_ERROR_GENERIC);
+			}
+		}
+		
 		response.put("message", dbQueryStatus.getMessage());
 		response = Utils.setResponseStatus(response, dbQueryStatus.getdbQueryExecResult(), dbQueryStatus.getData());
 		
