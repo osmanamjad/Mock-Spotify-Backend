@@ -99,7 +99,9 @@ public class ProfileController {
 
 		Map<String, Object> response = new HashMap<String, Object>();
 		response.put("path", String.format("GET %s", Utils.getUrl(request)));
-				
+		
+		dbQueryStatus = getFriendsSongIdsAndSongTitles(userName);
+
 		response.put("message", dbQueryStatus.getMessage());
 		response = Utils.setResponseStatus(response, dbQueryStatus.getdbQueryExecResult(), dbQueryStatus.getData());
 
@@ -175,8 +177,6 @@ public class ProfileController {
 			HttpUrl.Builder getSongUrlBuilder = HttpUrl.parse("http://localhost:3001" + "/getSongById").newBuilder();
 			getSongUrlBuilder.addPathSegment(songId);
 			String getSongUrl = getSongUrlBuilder.build().toString();
-			
-			System.out.println(getSongUrl);
 
 			Request getSongReq = new Request.Builder()
 					.url(getSongUrl)
@@ -191,7 +191,6 @@ public class ProfileController {
 			try {
 				responseFromGetSong = getSongCall.execute();
 				getSongBody = responseFromGetSong.body().string();
-				System.out.println(getSongBody);
 				
 				// if /getSongById found a song successfully, then we attempt to add/remove it to playlist
 				if (getSongBody.contains("\"status\":\"OK\"")) {
@@ -208,8 +207,6 @@ public class ProfileController {
 							favouritesUrlBuilder.addPathSegment(songId);
 							favouritesUrlBuilder.addQueryParameter("shouldDecrement", shouldDecrement);
 							String favouritesUrl = favouritesUrlBuilder.build().toString();
-							
-							System.out.println(favouritesUrl);
 
 						    RequestBody body = RequestBody.create(null, new byte[0]);
 							
@@ -226,7 +223,6 @@ public class ProfileController {
 							try {
 								responseFromFavourites = favouritesCall.execute();
 								favouritesBody = responseFromFavourites.body().string();
-								System.out.println(favouritesBody);
 								if (!favouritesBody.contains("\"status\":\"OK\"") ) {
 									dbQueryStatus = new DbQueryStatus("Update song favourites count was "
 											+ "not successful", DbQueryExecResult.QUERY_ERROR_GENERIC);
@@ -252,6 +248,58 @@ public class ProfileController {
 			dbQueryStatus = new DbQueryStatus("Unable to contact song microservice to find song by id", 
 					DbQueryExecResult.QUERY_ERROR_GENERIC);
 		}
+		return dbQueryStatus;
+	}
+	
+	public DbQueryStatus getFriendsSongIdsAndSongTitles(String userName) {
+		DbQueryStatus dbQueryStatus = null;
+		
+		dbQueryStatus = profileDriver.getAllSongFriendsLike(userName);
+		if(dbQueryStatus.getdbQueryExecResult() == DbQueryExecResult.QUERY_ERROR_NOT_FOUND) {
+			return new DbQueryStatus("User does not exist", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
+		} else if (dbQueryStatus.getdbQueryExecResult() == DbQueryExecResult.QUERY_ERROR_GENERIC) {
+			return new DbQueryStatus("Error getting friends song ids", DbQueryExecResult.QUERY_ERROR_GENERIC);
+		}
+		
+		Map<String, Object> userToSongId = (Map<String, Object>) dbQueryStatus.getData();
+		
+		JSONObject response = new JSONObject();
+		
+		try {
+			for(String key : userToSongId.keySet()) {
+				// Store the titles in a JSONArray. To be used in our data response
+				JSONArray songTitles = new JSONArray();
+				// Get the value associated with the user key and iterate over them. These values are song ids
+				List<String> songIds = (List<String>) userToSongId.get(key);
+				for (String id : songIds) {
+					HttpUrl.Builder getSongUrlBuilder = HttpUrl.parse("http://localhost:3001" + "/getSongTitleById").newBuilder();
+					getSongUrlBuilder.addPathSegment(id);
+					String getSongUrl = getSongUrlBuilder.build().toString();
+
+					Request getSongReq = new Request.Builder()
+							.url(getSongUrl)
+							.method("GET", null)
+							.build();
+					
+					Call getSongCall = client.newCall(getSongReq);
+					Response responseFromGetSong = null;
+					
+					responseFromGetSong = getSongCall.execute();
+					
+					// Convert the getSongTitleById to a json to get the title field
+					JSONObject songData = new JSONObject(responseFromGetSong.body().string());
+					
+					songTitles.put(songData.get("data"));
+				}
+				response.put(key, songTitles);
+				dbQueryStatus = new DbQueryStatus("Successfully retrieved friends songs", DbQueryExecResult.QUERY_OK);
+				dbQueryStatus.setData(response.toMap());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			dbQueryStatus = new DbQueryStatus("Unable to contact song microservice to find song title by id", DbQueryExecResult.QUERY_ERROR_GENERIC);
+		}
+		
 		return dbQueryStatus;
 	}
 }

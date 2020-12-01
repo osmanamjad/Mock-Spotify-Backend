@@ -71,7 +71,7 @@ public class SongDalImpl implements SongDal {
 				Document song = (Document) iterator.next(); 
 				JSONObject jsonObj = new JSONObject(song.toJson()); 
 				dbqs = new DbQueryStatus("Retrieving song", DbQueryExecResult.QUERY_OK);
-				dbqs.setData(jsonObj.toString());
+				dbqs.setData(jsonObj.toMap());
 			}
 		} catch (Exception e) {
 			return new DbQueryStatus("Error retrieving song", DbQueryExecResult.QUERY_ERROR_GENERIC);

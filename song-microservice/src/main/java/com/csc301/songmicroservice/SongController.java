@@ -87,8 +87,6 @@ public class SongController {
 				deleteSongUrlBuilder.addPathSegment(songId);
 				String deleteSongUrl = deleteSongUrlBuilder.build().toString();
 				
-				System.out.println(deleteSongUrl);
-				
 			    RequestBody body = RequestBody.create(null, new byte[0]);
 
 				Request deleteSongReq = new Request.Builder()
@@ -104,7 +102,6 @@ public class SongController {
 				try {
 					responseFromDeleteSong = deleteSongCall.execute();
 					deleteSongBody = responseFromDeleteSong.body().string();
-					System.out.println(deleteSongBody);
 					
 					//if song doesnt exist in neo4j db, or its been successfully deleted, then status is OK
 					if (!deleteSongBody.contains("\"status\":\"OK\"")) {

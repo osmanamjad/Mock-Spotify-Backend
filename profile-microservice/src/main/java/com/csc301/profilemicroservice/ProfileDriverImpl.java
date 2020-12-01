@@ -160,7 +160,65 @@ public class ProfileDriverImpl implements ProfileDriver {
 
 	@Override
 	public DbQueryStatus getAllSongFriendsLike(String userName) {
-		return null;
+		
+		DbQueryStatus dbqs = null;
+		
+		try (Session session = ProfileMicroserviceApplication.driver.session()) {
+			try (Transaction trans = session.beginTransaction()) {
+				try {
+					String query;
+					Map<String, Object> queryParams;
+					Record record = null;
+					StatementResult result = null;
+					if(!isNameInDB(userName, "profile")) {
+						return new DbQueryStatus("User does not exist", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
+					}
+					
+					// Get the friends of parameter userName
+					query = "MATCH ({userName: $x})-[r:follows]->(n)\n"
+							+ "RETURN n.userName";
+					queryParams = new HashMap<String, Object>();
+					queryParams.put("x", userName);
+					
+					result = trans.run(query, queryParams);
+					queryParams.clear();
+					
+					List<String> friends = new ArrayList<String>();
+					while(result.hasNext()) {
+						record = result.next();
+						friends.add(record.get("n.userName").asString());
+					}
+					
+					Map<String, Object> userToSongId = new HashMap<String, Object>();
+					// For each friend, get the songIds in there playlists and store them in a hashmap
+					for(String user: friends) {
+						query = "MATCH (:profile {userName: $x})-[:created]->(:playlist)-[:includes]->(s:song)\n"
+								+ "RETURN s.songId";
+						queryParams.put("x", user);
+						result = trans.run(query, queryParams);
+						
+						List<String> songIds = new ArrayList<String>();
+						if(!result.hasNext()) {
+							userToSongId.put(user, songIds);
+						}
+						while(result.hasNext()) {
+							record = result.next();
+							songIds.add(record.get("s.songId").asString());
+						}
+						userToSongId.put(user, songIds);
+					}
+					
+					dbqs = new DbQueryStatus("Retrieving " + userName+ " friends song ids", DbQueryExecResult.QUERY_OK);
+					dbqs.setData(userToSongId);
+					trans.success();
+					
+				} catch (Exception e) {
+					return new DbQueryStatus("Error getting friends song ids", DbQueryExecResult.QUERY_ERROR_GENERIC);
+				}
+			}
+			session.close();
+		}
+		return dbqs;
 	}
 	
 	public boolean isNameInDB(String name, String type) throws Exception {
