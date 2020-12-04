@@ -92,6 +92,10 @@ public class ProfileDriverImpl implements ProfileDriver {
 		try (Session session = ProfileMicroserviceApplication.driver.session()){
 			try (Transaction trans = session.beginTransaction()) {
 				try {	
+					if(userName.equals(frndUserName)) {
+						return new DbQueryStatus("Can not follow yourself", DbQueryExecResult.QUERY_ERROR_GENERIC);
+					}
+					
 					if (!isNameInDB(userName, "profile") || !isNameInDB(frndUserName, "profile")) {
 						return new DbQueryStatus("User do not exist", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
 					}
@@ -129,6 +133,10 @@ public class ProfileDriverImpl implements ProfileDriver {
 		try (Session session = ProfileMicroserviceApplication.driver.session()) {
 			try (Transaction trans = session.beginTransaction()) {
 				try {
+					if(userName.equals(frndUserName)) {
+						return new DbQueryStatus("Can not unfollow yourself. (Can't follow yourself to begin with)", DbQueryExecResult.QUERY_ERROR_GENERIC);
+					}
+					
 					if (!isNameInDB(userName, "profile") || !isNameInDB(frndUserName, "profile")) {
 						return new DbQueryStatus("User do not exist", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
 					}
