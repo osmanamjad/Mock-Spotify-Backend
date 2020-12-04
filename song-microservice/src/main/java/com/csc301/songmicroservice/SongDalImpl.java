@@ -27,13 +27,21 @@ public class SongDalImpl implements SongDal {
 		this.db = mongoTemplate;
 	}
 
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function creates an new song  in the mongo database using the fields of the Song object provided
+	*
+	* @param  songToAdd  	the Song object includes songName, songArtistFullName, songAlbum, and songAmountFavourites
+	* @return DbQueryStatus the message, status, and result of running database query to add song
+	*/
 	@Override
 	public DbQueryStatus addSong(Song songToAdd) {
 		Document song = new Document();
 		DbQueryStatus dbqs;
-		song.put("songName", songToAdd.getSongName());
-		song.put("songArtistFullName", songToAdd.getSongArtistFullName());
-		song.put("songAlbum", songToAdd.getSongAlbum());
+		song.put(Song.KEY_SONG_NAME, songToAdd.getSongName());
+		song.put(Song.KEY_SONG_ARTIST_FULL_NAME, songToAdd.getSongArtistFullName());
+		song.put(Song.KEY_SONG_ALBUM, songToAdd.getSongAlbum());
 		song.put("songAmountFavourites", songToAdd.getSongAmountFavourites());
 		try {
 			db.getCollection("songs").insertOne(song);
@@ -49,6 +57,14 @@ public class SongDalImpl implements SongDal {
 		return dbqs;
 	}
 
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function attempts to find a song with the specified songId
+	*
+	* @param  songId	  	the songId to search for
+	* @return DbQueryStatus the message, status, and result of running database query to find song by id
+	*/
 	@Override
 	public DbQueryStatus findSongById(String songId) {
 		DbQueryStatus dbqs = null;
@@ -80,6 +96,14 @@ public class SongDalImpl implements SongDal {
 		return dbqs;
 	}
 
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function attempts to find a song with the specified songId and return its title
+	*
+	* @param  songId	  	the songId to search for
+	* @return DbQueryStatus the message, status, and result of running database query to find song and get title
+	*/
 	@Override
 	public DbQueryStatus getSongTitleById(String songId) {
 		DbQueryStatus dbqs = null;
@@ -102,7 +126,7 @@ public class SongDalImpl implements SongDal {
 				Document song = (Document) iterator.next(); 
 				JSONObject jsonObj = new JSONObject(song.toJson()); 
 				dbqs = new DbQueryStatus("Retrieving song title", DbQueryExecResult.QUERY_OK);
-				dbqs.setData(jsonObj.get("songName"));
+				dbqs.setData(jsonObj.get(Song.KEY_SONG_NAME));
 			}
 		} catch (Exception e) {
 			return new DbQueryStatus("Error retrieving song title", DbQueryExecResult.QUERY_ERROR_GENERIC);
@@ -111,6 +135,14 @@ public class SongDalImpl implements SongDal {
 		return dbqs;
 	}
 
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function attempts to delete a song with the specified songId from mongo db
+	*
+	* @param  songId	  	the songId to search for and delete
+	* @return DbQueryStatus the message, status, and result of running database query to delete song
+	*/
 	@Override
 	public DbQueryStatus deleteSongById(String songId) {
 		DbQueryStatus dbqs = null;
@@ -131,6 +163,16 @@ public class SongDalImpl implements SongDal {
 		return dbqs;
 	}
 
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function attempts to find a song with the specified songId and increment/decrement its 
+	* songFavorites count.
+	*
+	* @param  songId	  		the songId to search for
+	* @param  shouldDecrement  	the boolean representing whether or not to decrement
+	* @return DbQueryStatus 	the message, status, and result of running database query update song favorites count
+	*/
 	@Override
 	public DbQueryStatus updateSongFavouritesCount(String songId, boolean shouldDecrement) {
 		int change;

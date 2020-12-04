@@ -50,19 +50,27 @@ public class ProfileController {
 		this.playlistDriver = playlistDriver;
 	}
 
+	/**
+	 * Adds a profile to the profile database by calling profileDriver createUserProfile, using the given parameters as profile information.
+	 * And for each profile created, also create a relation: (nProfile:profile)-[:created]->(nPlaylist:playlist)
+	 * 
+	 * @param params				the map of parameters, which will contain username, fullname, and password
+	 * @param request				to determine path that was called from within each REST route
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/profile", method = RequestMethod.POST)
 	public @ResponseBody Map<String, Object> addProfile(@RequestParam Map<String, String> params,
 			HttpServletRequest request) {
 		
 		DbQueryStatus dbQueryStatus = null;
 		
-		if (params.get("userName") == null || params.get("fullName") == null || 
-				params.get("password") == null) {
+		if (params.get(KEY_USER_NAME) == null || params.get(KEY_USER_FULLNAME ) == null || 
+				params.get(KEY_USER_PASSWORD) == null) {
 			dbQueryStatus = new DbQueryStatus("Missing query params", DbQueryExecResult.QUERY_ERROR_GENERIC);
 		}
 		else {
-			dbQueryStatus = profileDriver.createUserProfile(params.get("userName"), params.get("fullName"), 
-					params.get("password"));
+			dbQueryStatus = profileDriver.createUserProfile(params.get(KEY_USER_NAME), 
+					params.get(KEY_USER_FULLNAME), params.get(KEY_USER_PASSWORD));
 		}
 		
 		Map<String, Object> response = new HashMap<String, Object>();
@@ -74,6 +82,16 @@ public class ProfileController {
 		return response;
 	}
 
+	
+	/**
+	 * Adds a relation "follows" from user with userName to user with friendUserName by calling profileDriver function followFriend.
+	 * The relations has the form: (profile)-[:follows]->(:profile)
+	 * 
+	 * @param userName				the user that wants to follow
+	 * @param friendUserName		the user to be followed
+	 * @param request				to determine path that was called from within each REST route
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/followFriend/{userName}/{friendUserName}", method = RequestMethod.PUT)
 	public @ResponseBody Map<String, Object> followFriend(@PathVariable("userName") String userName,
 			@PathVariable("friendUserName") String friendUserName, HttpServletRequest request) {
@@ -91,6 +109,16 @@ public class ProfileController {
 		return response;
 	}
 
+	/**
+	 * Retrieve the song names of all the songs that the specified user's friends have liked, 
+	 * by calling local method getFriendsSongIdsAndSongTitles. This method calls profileDriver function getAllSongFriendsLike,
+	 * which queries the neo4j database and returns a map of the songs and their favourite songIds.
+	 * The getFriendsSongIdsAndSongTitles then creates a map from friend->songIds to friend->songTitles
+	 * 
+	 * @param userName				for the user that is specified, find this persons friends favorite songs
+	 * @param request				to determine path that was called from within each REST route
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/getAllFriendFavouriteSongTitles/{userName}", method = RequestMethod.GET)
 	public @ResponseBody Map<String, Object> getAllFriendFavouriteSongTitles(@PathVariable("userName") String userName,
 			HttpServletRequest request) {
@@ -108,7 +136,15 @@ public class ProfileController {
 		return response;
 	}
 
-
+	/**
+	 * Removes a relation "follows" from user with userName to user with friendUserName, by calling profileDriver function unfollowFriend.
+	 * The relations has the form: (profile)-[:follows]->(:profile)
+	 * 
+	 * @param userName 				the user that wants to unfollow
+	 * @param friendUserName 		the user to be unfollowed
+	 * @param request				the response data, status, message and path from the called request
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/unfollowFriend/{userName}/{friendUserName}", method = RequestMethod.PUT)
 	public @ResponseBody Map<String, Object> unfollowFriend(@PathVariable("userName") String userName,
 			@PathVariable("friendUserName") String friendUserName, HttpServletRequest request) {
@@ -126,6 +162,16 @@ public class ProfileController {
 		return response;
 	}
 
+	/**
+	 * Allows a Profile to like a song and add it to their favorites.
+	 * We call local function likeSongAndUpdateFavourites, which makes requests (/getSongById, /updateSongFavouritesCount)
+	 * to the song microservice to do the heavy lifting.
+	 * 
+	 * @param userName				the userName of the Profile that is going to like the song
+	 * @param songId				the String that represents the _id of the song that needs to be liked
+	 * @param request				the response data, status, message and path from the called request
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/likeSong/{userName}/{songId}", method = RequestMethod.PUT)
 	public @ResponseBody Map<String, Object> likeSong(@PathVariable("userName") String userName,
 			@PathVariable("songId") String songId, HttpServletRequest request) {
@@ -140,6 +186,16 @@ public class ProfileController {
 		return response;
 	}
 
+	/**
+	 * Allows a Profile to unlike a song and remove it from their favorites.
+	 * We call local function likeSongAndUpdateFavourites, which makes requests (/getSongById, /updateSongFavouritesCount)
+	 * o the song microservice to do the heavy lifting.
+	 * 
+	 * @param userName 				the userName of the Profile that is going to unlike the song
+	 * @param songId 				the String that represents the _id of the song that needs to be unliked
+	 * @param request				the response data, status, message and path from the called request
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/unlikeSong/{userName}/{songId}", method = RequestMethod.PUT)
 	public @ResponseBody Map<String, Object> unlikeSong(@PathVariable("userName") String userName,
 			@PathVariable("songId") String songId, HttpServletRequest request) {
@@ -154,6 +210,14 @@ public class ProfileController {
 		return response;
 	}
 
+	/**
+	 * Deletes the specified songId from the neo4j database and removes it from all playlist relations, 
+	 * calls the playlistDriver function deleteSongFromDb.
+	 * 
+	 * @param songId				the String that represents the _id of the song that needs to be deleted
+	 * @param request 				the response data, status, message and path from the called request
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/deleteAllSongsFromDb/{songId}", method = RequestMethod.PUT)
 	public @ResponseBody Map<String, Object> deleteAllSongsFromDb(@PathVariable("songId") String songId,
 			HttpServletRequest request) {
@@ -170,6 +234,16 @@ public class ProfileController {
 		return response;
 	}
 	
+	/**
+	 * Given a profile with the specified userName, contact the song microservice routes to get song information.
+	 * Here we call like/unlikeSong to add/remove the song from a profiles playlist and 
+	 * update the songs favorite count in the mongo database accordingly.
+	 * 
+	 * @param userName			the userName of the specified Profile 
+	 * @param songId			the String that represents the _id of the specified song
+	 * @param shouldDecrement	the boolean representing whether or not to decrement
+	 * @return DbQueryStatus 	the message, status, and result of running database query 
+	 */
 	public DbQueryStatus likeSongAndUpdateFavourites(String userName, String songId, String shouldDecrement) {
 		DbQueryStatus dbQueryStatus = null;
 
@@ -200,8 +274,8 @@ public class ProfileController {
 						dbQueryStatus = playlistDriver.unlikeSong(userName, songId);
 					}
 					
-					//if it was successfully liked and added to playlist then update its favourites count
-					if (dbQueryStatus.getdbQueryExecResult() == DbQueryExecResult.QUERY_OK) {
+					//if it was successfully liked/unliked then update its favourites count
+					if (dbQueryStatus.getMessage().contains("Successfully")) {
 						try {
 							HttpUrl.Builder favouritesUrlBuilder = HttpUrl.parse("http://localhost:3001" + "/updateSongFavouritesCount").newBuilder();
 							favouritesUrlBuilder.addPathSegment(songId);
@@ -236,9 +310,6 @@ public class ProfileController {
 									+ "update song favourites", DbQueryExecResult.QUERY_ERROR_GENERIC);
 						}
 					}
-					
-				} else {
-					dbQueryStatus = new DbQueryStatus("Song not found", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -251,6 +322,14 @@ public class ProfileController {
 		return dbQueryStatus;
 	}
 	
+	/**
+	 * Given a profile with specified userName, call the profileDriver function getAllSongFriendsLike to get a map
+	 * from friends->songIds. Then in this function contact the song microservice to get songTitlesById, and store
+	 * this map friends->songTitles in DbQueryStatus data field.
+	 * 
+	 * @param userName 			the userName of the specified Profile 
+	 * @return DbQueryStatus 	the message, status, and result of running database query 
+	 */
 	public DbQueryStatus getFriendsSongIdsAndSongTitles(String userName) {
 		DbQueryStatus dbQueryStatus = null;
 		

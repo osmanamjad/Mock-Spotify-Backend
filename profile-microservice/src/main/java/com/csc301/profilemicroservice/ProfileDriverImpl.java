@@ -40,6 +40,16 @@ public class ProfileDriverImpl implements ProfileDriver {
 		}
 	}
 	
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function creates a user profile in the neo4j database 
+	*
+	* @param  userName  	the userName of the profile to create
+	* @param  fullName 		the full name of the profile to create
+	* @param  password 		the password of the profile to create
+	* @return DbQueryStatus the message, status, and result of running database query to create profile
+	*/
 	@Override
 	public DbQueryStatus createUserProfile(String userName, String fullName, String password) {
 		
@@ -84,6 +94,15 @@ public class ProfileDriverImpl implements ProfileDriver {
 		return dbqs;
 	}
 
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function creates a "follows" relationship between two profiles in the neo4j database
+	*
+	* @param  userName  	the userName of the profile who is going to follow someone
+	* @param  frndUserName 	the userName of the profile being followed
+	* @return DbQueryStatus the message, status, and result of running database query to follow friend
+	*/
 	@Override
 	public DbQueryStatus followFriend(String userName, String frndUserName) {
 		
@@ -96,7 +115,7 @@ public class ProfileDriverImpl implements ProfileDriver {
 						return new DbQueryStatus("Can not follow yourself", DbQueryExecResult.QUERY_ERROR_GENERIC);
 					}
 					
-					if (!isNameInDB(userName, "profile") || !isNameInDB(frndUserName, "profile")) {
+					if (!isNameInDB(userName) || !isNameInDB(frndUserName)) {
 						return new DbQueryStatus("User do not exist", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
 					}
 					
@@ -125,6 +144,15 @@ public class ProfileDriverImpl implements ProfileDriver {
 		return dbqs;
 	}
 
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function removes the "follows" relationship between two profiles in neo4j database
+	*
+	* @param  userName  	the userName of the profile who is going to unfollow someone
+	* @param  frndUserName 	the userName of the profile being unfollowed
+	* @return DbQueryStatus the message, status, and result of running database query to unfollow friend
+	*/
 	@Override
 	public DbQueryStatus unfollowFriend(String userName, String frndUserName) {
 		
@@ -137,7 +165,7 @@ public class ProfileDriverImpl implements ProfileDriver {
 						return new DbQueryStatus("Can not unfollow yourself. (Can't follow yourself to begin with)", DbQueryExecResult.QUERY_ERROR_GENERIC);
 					}
 					
-					if (!isNameInDB(userName, "profile") || !isNameInDB(frndUserName, "profile")) {
+					if (!isNameInDB(userName) || !isNameInDB(frndUserName)) {
 						return new DbQueryStatus("User do not exist", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
 					}
 					
@@ -165,7 +193,15 @@ public class ProfileDriverImpl implements ProfileDriver {
 		dbqs = new DbQueryStatus(userName + " unfollows " + frndUserName, DbQueryExecResult.QUERY_OK);
 		return dbqs;
 	}
-
+	
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function gets the songIds of all the songs the user's friends like
+	*
+	* @param  userName  	the userName of the profile whose friends' songs we're checking
+	* @return DbQueryStatus the message, status, and result of running database query to get friends' songs
+	*/
 	@Override
 	public DbQueryStatus getAllSongFriendsLike(String userName) {
 		
@@ -178,7 +214,7 @@ public class ProfileDriverImpl implements ProfileDriver {
 					Map<String, Object> queryParams;
 					Record record = null;
 					StatementResult result = null;
-					if(!isNameInDB(userName, "profile")) {
+					if(!isNameInDB(userName)) {
 						return new DbQueryStatus("User does not exist", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
 					}
 					
@@ -229,19 +265,33 @@ public class ProfileDriverImpl implements ProfileDriver {
 		return dbqs;
 	}
 	
-	public boolean isNameInDB(String name, String type) throws Exception {
+	/**
+	* Returns a boolean representing whether or not a profile with a certain username exists
+	* in neo4j database
+	*
+	* @param  userName  		a userName to check if it exists in the neo4j database
+	* @return boolean 			a boolean representing whether or not profile with that username exists
+	*/
+	public boolean isNameInDB(String userName) throws Exception {
 		Session session = driver.session();
 		Transaction trans = session.beginTransaction();
-		StatementResult result = trans.run("MATCH (n:" + type + ") RETURN n.userName");
+		StatementResult result = trans.run("MATCH (n:profile) RETURN n.userName");
 		while(result.hasNext()) {
 			Record record = result.next();
-			if (name.equals(record.get("n.userName").asString())) {
+			if (userName.equals(record.get("n.userName").asString())) {
 				return true;
 			}
 		}
 		return false;
 	}
 	
+	/**
+	* Returns a boolean representing whether or not a "follows" relationship exists between 2 users
+	*
+	* @param  userName  		the username of the first user
+	* @param  frndUserName		the username of the second user  
+	* @return boolean 			a boolean representing whether relationship exists between the 2 users
+	*/
 	public boolean isRelationshipInDB(String userName, String frndUserName) throws Exception {
 		Session session = driver.session();
 		Transaction trans = session.beginTransaction();

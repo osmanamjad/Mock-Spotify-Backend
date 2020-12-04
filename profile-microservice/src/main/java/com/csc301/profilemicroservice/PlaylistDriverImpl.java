@@ -28,6 +28,15 @@ public class PlaylistDriverImpl implements PlaylistDriver {
 		}
 	}
 
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function creates an "includes" relationship between the username's playlist and songId 
+	*
+	* @param  userName  	the userName part of the playlist to add the song to
+	* @param  songId 		the songId of the song node
+	* @return DbQueryStatus the message, status, and result of running database query to like song
+	*/
 	@Override
 	public DbQueryStatus likeSong(String userName, String songId) {
 		DbQueryStatus dbqs = null;
@@ -35,8 +44,11 @@ public class PlaylistDriverImpl implements PlaylistDriver {
 		try (Session session = ProfileMicroserviceApplication.driver.session()){
 			try (Transaction trans = session.beginTransaction()) {
 				try {	
-					if (!isNameInDB(userName, "profile")) {
+					if (!isNameInDB(userName)) {
 						return new DbQueryStatus("User not found", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
+					}
+					if (isRelationshipInDB(userName, songId)) {
+						return new DbQueryStatus("Song has been liked already", DbQueryExecResult.QUERY_OK);
 					}
 					String querySong = "MERGE (s:song {songId: $x})";
 					Map<String, Object> querySongParam = new HashMap<String, Object>();
@@ -65,6 +77,15 @@ public class PlaylistDriverImpl implements PlaylistDriver {
 		return dbqs;
 	}
 
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function removes the "includes" relationship between the username's playlist and songId 
+	*
+	* @param  userName  	the userName part of the playlist to remove the song from
+	* @param  songId 		the songId of the song node
+	* @return DbQueryStatus the message, status, and result of running database query to unlike song
+	*/
 	@Override
 	public DbQueryStatus unlikeSong(String userName, String songId) {
 		DbQueryStatus dbqs = null;
@@ -72,7 +93,7 @@ public class PlaylistDriverImpl implements PlaylistDriver {
 		try (Session session = ProfileMicroserviceApplication.driver.session()){
 			try (Transaction trans = session.beginTransaction()) {
 				try {	
-					if (!isNameInDB(userName, "profile")) {
+					if (!isNameInDB(userName)) {
 						return new DbQueryStatus("User not found", DbQueryExecResult.QUERY_ERROR_NOT_FOUND);
 					}
 					
@@ -102,6 +123,14 @@ public class PlaylistDriverImpl implements PlaylistDriver {
 		return dbqs;
 	}
 
+	/**
+	* Returns a DbQueryStatus object used to extract status and data information
+	* The DbQueryStatus object includes a dbQueryExecResult value.
+	* The function removes the song with the specified songId from the neo4j database 
+	*
+	* @param  songId 		the songId of the song node to remove
+	* @return DbQueryStatus the message, status, and result of running database query to delete song
+	*/
 	@Override
 	public DbQueryStatus deleteSongFromDb(String songId) {
 		DbQueryStatus dbqs = null;
@@ -135,19 +164,32 @@ public class PlaylistDriverImpl implements PlaylistDriver {
 		return dbqs;
 	}
 	
-	public boolean isNameInDB(String name, String type) throws Exception {
+	/**
+	* Returns a boolean representing whether or not the a profile with a certain username exists
+	* in neo4j database
+	*
+	* @param  userName  		a userName to check if it exists in the neo4j database
+	* @return boolean 			a boolean representing whether or not profile with that username exists
+	*/
+	public boolean isNameInDB(String userName) throws Exception {
 		Session session = driver.session();
 		Transaction trans = session.beginTransaction();
-		StatementResult result = trans.run("MATCH (n:" + type + ") RETURN n.userName");
+		StatementResult result = trans.run("MATCH (n:profile) RETURN n.userName");
 		while(result.hasNext()) {
 			Record record = result.next();
-			if (name.equals(record.get("n.userName").asString())) {
+			if (userName.equals(record.get("n.userName").asString())) {
 				return true;
 			}
 		}
 		return false;
 	}
 	
+	/**
+	* Returns a boolean representing whether the song with the songId exists in the neo4j database
+	*
+	* @param  songId  			a songId to check if it exists in the neo4j database
+	* @return boolean 			a boolean representing whether a song with that songId exists
+	*/
 	public boolean isSongInDB(String songId) throws Exception {
 		Session session = driver.session();
 		Transaction trans = session.beginTransaction();
@@ -161,6 +203,14 @@ public class PlaylistDriverImpl implements PlaylistDriver {
 		return false;
 	}
 	
+	/**
+	* Returns a boolean representing whether or not an "includes" relationship exists between 
+	* a playlist and song
+	*
+	* @param  userName  		the username part of the playlist
+	* @param  songId			the songId of the song node  
+	* @return boolean 			a boolean representing whether relationship exists between song and playlist
+	*/
 	public boolean isRelationshipInDB(String userName, String songId) throws Exception {
 		Session session = driver.session();
 		Transaction trans = session.beginTransaction();

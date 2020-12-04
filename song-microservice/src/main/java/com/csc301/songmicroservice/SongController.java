@@ -38,7 +38,14 @@ public class SongController {
 		this.songDal = songDal;
 	}
 
-	
+	/**
+	 * We query the mongo database for the song information specified by the songId,
+	 * this is handled in the songDal function findSongById.
+	 * 
+	 * @param songId				the String that represents the _id of the song
+	 * @param request				to determine path that was called from within each REST route
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/getSongById/{songId}", method = RequestMethod.GET)
 	public @ResponseBody Map<String, Object> getSongById(@PathVariable("songId") String songId,
 			HttpServletRequest request) {
@@ -54,7 +61,14 @@ public class SongController {
 		return response;
 	}
 
-	
+	/**
+	 * We query the mongo database for only the song name specified by the songId,
+	 * this is handled in the songDal function getSongTitleById.
+	 * 
+	 * @param songId				the String that represents the _id of the song
+	 * @param request				to determine path that was called from within each REST route
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/getSongTitleById/{songId}", method = RequestMethod.GET)
 	public @ResponseBody Map<String, Object> getSongTitleById(@PathVariable("songId") String songId,
 			HttpServletRequest request) {
@@ -70,7 +84,15 @@ public class SongController {
 		return response;
 	}
 
-	
+	/**
+	 * Delete the specified song with songId from the mongo database,
+	 * but also make contact with the profile microservice which will delete the song
+	 * in the neo4j database and remove the relations from playlist to that specified song.
+	 * 
+	 * @param songId				the String that represents the _id of the song
+	 * @param request				to determine path that was called from within each REST route
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/deleteSongById/{songId}", method = RequestMethod.DELETE)
 	public @ResponseBody Map<String, Object> deleteSongById(@PathVariable("songId") String songId,
 			HttpServletRequest request) {
@@ -124,20 +146,27 @@ public class SongController {
 		return response;
 	}
 
-	
+	/**
+	 * Create a document in the mongo database with the song information specified in params.
+	 * This is handled by songDal's addSong function.
+	 * 
+	 * @param params				the song information (songName, songArtistFullName, songAlbum)
+	 * @param request  				to determine path that was called from within each REST route
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/addSong", method = RequestMethod.POST)
 	public @ResponseBody Map<String, Object> addSong(@RequestParam Map<String, String> params,
 			HttpServletRequest request) {
 		
 		DbQueryStatus dbQueryStatus = null;
 		
-		if (params.get("songName") == null || params.get("songArtistFullName") == null || 
-				params.get("songAlbum") == null) {
+		if (params.get(Song.KEY_SONG_NAME) == null || params.get(Song.KEY_SONG_ARTIST_FULL_NAME) == null || 
+				params.get(Song.KEY_SONG_ALBUM) == null) {
 			dbQueryStatus = new DbQueryStatus("Missing query params", DbQueryExecResult.QUERY_ERROR_GENERIC);
 		}
 		else {
-			Song song = new Song(params.get("songName"), params.get("songArtistFullName"), 
-					params.get("songAlbum"));
+			Song song = new Song(params.get(Song.KEY_SONG_NAME), params.get(Song.KEY_SONG_ARTIST_FULL_NAME), 
+					params.get(Song.KEY_SONG_ALBUM));
 			dbQueryStatus = songDal.addSong(song);
 
 		}
@@ -150,7 +179,15 @@ public class SongController {
 		return response;
 	}
 
-	
+	/**
+	 * Updates the song's favorite count, specified by songId in the mongo database, based on the shouldDecrement parameter.
+	 * This is handled by songDal's updateSongFavouritesCount function.
+	 * 
+	 * @param songId				the String that represents the _id of the song
+	 * @param shouldDecrement		the boolean representing whether or not to decrement
+	 * @param request				to determine path that was called from within each REST route
+	 * @return Map<String, Object>	the response data, status, message and path from the called request
+	 */
 	@RequestMapping(value = "/updateSongFavouritesCount/{songId}", method = RequestMethod.PUT)
 	public @ResponseBody Map<String, Object> updateFavouritesCount(@PathVariable("songId") String songId,
 			@RequestParam("shouldDecrement") String shouldDecrement, HttpServletRequest request) {
