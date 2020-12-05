@@ -62,6 +62,9 @@ public class ProfileDriverImpl implements ProfileDriver {
 		try (Session session = ProfileMicroserviceApplication.driver.session()) {
 			try (Transaction trans = session.beginTransaction()) {
 				try {
+					if (isNameInDB(userName)) {
+						return new DbQueryStatus("Profile with that username already exists", DbQueryExecResult.QUERY_ERROR_GENERIC);
+					}
 					queryProfile = "MERGE (p:profile {userName: $x, fullName: $y, password: $z})";
 					queryPlaylist = "MERGE (pl:playlist {plName: $x})";
 					queryRelation = "MATCH (nProfile:profile {userName: $x}),(nPlaylist:playlist {plName:$y})\n"

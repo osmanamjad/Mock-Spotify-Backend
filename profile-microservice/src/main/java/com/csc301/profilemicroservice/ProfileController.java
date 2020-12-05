@@ -310,6 +310,9 @@ public class ProfileController {
 									+ "update song favourites", DbQueryExecResult.QUERY_ERROR_GENERIC);
 						}
 					}
+				} else {
+					dbQueryStatus = new DbQueryStatus("Error getting song with this id", 
+							DbQueryExecResult.QUERY_ERROR_GENERIC);
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
